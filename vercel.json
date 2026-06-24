@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run build",
+  "buildCommand": "pnpm --filter schemalens build && esbuild artifacts/api-server/src/index.ts --bundle --platform=node --format=cjs --outfile=api/_bundle.cjs --external:pg-native",
   "outputDirectory": "artifacts/schemalens/dist",
   "functions": {
     "api/index.ts": {

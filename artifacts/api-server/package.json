@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bash -c 'set -a && source ../../.env && set +a && tsx watch --clear-screen=false src/index.ts'",
-    "build": "tsc"
+    "dev": "bash -c 'set -a && source ../../.env && set +a && tsx watch --clear-screen=false src/index.ts'"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.5",
