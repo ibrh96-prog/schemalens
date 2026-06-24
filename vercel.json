@@ -7,17 +7,7 @@
       "includeFiles": "api/_bundle.cjs"
     }
   },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" }
   ]
 }
