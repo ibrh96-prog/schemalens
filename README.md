@@ -93,8 +93,13 @@ pnpm install
 cp .env.example .env
 # Edit .env — set DATABASE_URL to your Neon (or any Postgres) connection string
 
-# 4. Load the demo schema (optional but recommended for the demo button)
-psql $DATABASE_URL -f lib/db/seed/demo_shop.sql
+# 4. Load the demo schema (optional — needed for the "Try the demo" button)
+#    Copy the contents of lib/db/seed/demo_shop.sql and run it in any
+#    Postgres client: psql, TablePlus, DBeaver, the Neon SQL Editor, etc.
+#    No psql installation required.
+#
+#    If you do have psql:
+psql "$DATABASE_URL" -f lib/db/seed/demo_shop.sql
 
 # 5. Start both servers
 pnpm dev
@@ -124,13 +129,19 @@ The `lib/db/seed/demo_shop.sql` file creates a realistic e-commerce schema (`dem
 - Rich foreign-key graph (ideal for the ER diagram)
 - ~15–40 rows per table (so row-count estimates are non-zero)
 
-Load it once before clicking **Try the demo schema**:
+Load it once before clicking **Try the demo schema**. You do not need `psql` installed — any Postgres client works:
+
+- **Neon SQL Editor** (or any web-based editor): copy-paste the contents of `lib/db/seed/demo_shop.sql` and run it against your metadata database.
+- **TablePlus / DBeaver / pgAdmin**: open the file via File → Open or copy-paste the SQL.
+- **psql** (if installed):
 
 ```bash
-# Using psql
-psql $DATABASE_URL -f lib/db/seed/demo_shop.sql
+psql "$DATABASE_URL" -f lib/db/seed/demo_shop.sql
+```
 
-# Or using the npm script
+- **pnpm script** (uses `tsx` + postgres.js, no psql needed):
+
+```bash
 pnpm db:seed
 ```
 
