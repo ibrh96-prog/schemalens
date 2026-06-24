@@ -1,0 +1,454 @@
+openapi: 3.1.0
+info:
+  title: SchemaLens API
+  version: 0.1.0
+  description: |
+    REST API for SchemaLens — a self-hosted PostgreSQL schema documentation tool.
+    All annotation data is stored in SchemaLens's own metadata database.
+    Target database connections are read-only and transient.
+
+servers:
+  - url: /api
+    description: Same-origin API (proxied in dev, serverless on Vercel)
+
+tags:
+  - name: connections
+    description: Saved connection metadata (no passwords stored)
+  - name: scan
+    description: Introspect a target PostgreSQL database (read-only)
+  - name: annotations
+    description: Human-written notes attached to tables and columns
+  - name: tags
+    description: Coloured labels attached to tables
+  - name: search
+    description: Full-text search across schema and annotations
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: health
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  ts: { type: string, format: date-time }
+
+  /connections:
+    get:
+      tags: [connections]
+      summary: List saved connections
+      operationId: listConnections
+      responses:
+        "200":
+          description: Array of connection records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Connection' }
+    post:
+      tags: [connections]
+      summary: Create a connection record
+      operationId: createConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateConnectionBody' }
+      responses:
+        "201":
+          description: Created connection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Connection' }
+
+  /connections/{id}:
+    get:
+      tags: [connections]
+      summary: Get a single connection
+      operationId: getConnection
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Connection record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Connection' }
+        "404":
+          description: Not found
+
+  /scan:
+    post:
+      tags: [scan]
+      summary: Introspect a target database
+      operationId: scan
+      description: |
+        Connects read-only to the target database, introspects all user schemas,
+        creates or reuses a connection record, and returns the schema plus any
+        existing annotations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connectionString]
+              properties:
+                connectionString:
+                  type: string
+                  description: Full PostgreSQL connection string (never stored)
+                name:
+                  type: string
+                  description: Optional label for this connection
+                connectionId:
+                  type: integer
+                  description: If provided, reuse an existing connection record
+      responses:
+        "200":
+          description: Scan result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanResult' }
+        "422":
+          description: Connection failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /demo/scan:
+    post:
+      tags: [scan]
+      summary: Introspect the built-in demo_shop schema
+      operationId: demoScan
+      description: Uses the app's own DATABASE_URL, restricted to the demo_shop schema.
+      responses:
+        "200":
+          description: Scan result for demo_shop
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanResult' }
+
+  /connections/{id}/rescan:
+    post:
+      tags: [scan]
+      summary: Re-introspect an existing connection
+      operationId: rescan
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connectionString]
+              properties:
+                connectionString: { type: string }
+      responses:
+        "200":
+          description: Fresh scan result with existing annotations re-attached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanResult' }
+
+  /connections/{id}/annotations:
+    get:
+      tags: [annotations]
+      summary: Get all annotations for a connection
+      operationId: getAnnotations
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Table and column annotations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tableAnnotations:
+                    type: array
+                    items: { $ref: '#/components/schemas/TableAnnotation' }
+                  columnAnnotations:
+                    type: array
+                    items: { $ref: '#/components/schemas/ColumnAnnotation' }
+
+  /annotations/table:
+    put:
+      tags: [annotations]
+      summary: Upsert a table annotation
+      operationId: upsertTableAnnotation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connectionId, schemaName, tableName, note]
+              properties:
+                connectionId: { type: integer }
+                schemaName: { type: string }
+                tableName: { type: string }
+                note: { type: string }
+      responses:
+        "200":
+          description: Saved annotation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TableAnnotation' }
+
+  /annotations/column:
+    put:
+      tags: [annotations]
+      summary: Upsert a column annotation
+      operationId: upsertColumnAnnotation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connectionId, schemaName, tableName, columnName, note]
+              properties:
+                connectionId: { type: integer }
+                schemaName: { type: string }
+                tableName: { type: string }
+                columnName: { type: string }
+                note: { type: string }
+      responses:
+        "200":
+          description: Saved annotation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ColumnAnnotation' }
+
+  /connections/{id}/tags:
+    get:
+      tags: [tags]
+      summary: Get all tags for a connection
+      operationId: getTags
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Tag' }
+
+  /tags:
+    put:
+      tags: [tags]
+      summary: Replace all tags for a table
+      operationId: setTableTags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connectionId, schemaName, tableName, tags]
+              properties:
+                connectionId: { type: integer }
+                schemaName: { type: string }
+                tableName: { type: string }
+                tags:
+                  type: array
+                  items:
+                    type: object
+                    required: [tag, color]
+                    properties:
+                      tag: { type: string }
+                      color: { type: string }
+      responses:
+        "200":
+          description: Saved tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Tag' }
+
+  /connections/{id}/search:
+    get:
+      tags: [search]
+      summary: Search tables, columns, and annotation text
+      operationId: search
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Search results (max 50)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SearchResult' }
+
+components:
+  schemas:
+    Connection:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        host: { type: string }
+        databaseName: { type: string }
+        username: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    CreateConnectionBody:
+      type: object
+      required: [name, host, databaseName]
+      properties:
+        name: { type: string }
+        host: { type: string }
+        databaseName: { type: string }
+        username: { type: string }
+
+    TableAnnotation:
+      type: object
+      properties:
+        id: { type: integer }
+        connectionId: { type: integer }
+        schemaName: { type: string }
+        tableName: { type: string }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ColumnAnnotation:
+      type: object
+      properties:
+        id: { type: integer }
+        connectionId: { type: integer }
+        schemaName: { type: string }
+        tableName: { type: string }
+        columnName: { type: string }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Tag:
+      type: object
+      properties:
+        id: { type: integer }
+        connectionId: { type: integer }
+        schemaName: { type: string }
+        tableName: { type: string }
+        tag: { type: string }
+        color: { type: string }
+
+    ScanResult:
+      type: object
+      properties:
+        connectionId: { type: integer }
+        schema: { $ref: '#/components/schemas/SchemaIntrospection' }
+        tableAnnotations:
+          type: array
+          items: { $ref: '#/components/schemas/TableAnnotation' }
+        columnAnnotations:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnAnnotation' }
+        tags:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
+
+    SchemaIntrospection:
+      type: object
+      properties:
+        tables:
+          type: array
+          items: { $ref: '#/components/schemas/TableInfo' }
+        scannedAt: { type: string, format: date-time }
+
+    TableInfo:
+      type: object
+      properties:
+        schemaName: { type: string }
+        tableName: { type: string }
+        tableType: { type: string }
+        rowEstimate: { type: integer }
+        columnCount: { type: integer }
+        columns:
+          type: array
+          items: { $ref: '#/components/schemas/ColumnInfo' }
+        primaryKeys:
+          type: array
+          items: { type: string }
+        foreignKeys:
+          type: array
+          items: { $ref: '#/components/schemas/ForeignKey' }
+        incomingForeignKeys:
+          type: array
+          items: { type: object }
+        indexes:
+          type: array
+          items: { type: object }
+
+    ColumnInfo:
+      type: object
+      properties:
+        columnName: { type: string }
+        ordinalPosition: { type: integer }
+        dataType: { type: string }
+        udtName: { type: string }
+        isNullable: { type: boolean }
+        columnDefault: { type: string, nullable: true }
+        isPrimaryKey: { type: boolean }
+        isForeignKey: { type: boolean }
+        foreignKeyTarget: { type: object, nullable: true }
+
+    ForeignKey:
+      type: object
+      properties:
+        constraintName: { type: string }
+        fromColumn: { type: string }
+        toSchema: { type: string }
+        toTable: { type: string }
+        toColumn: { type: string }
+
+    SearchResult:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [table, column, annotation]
+        schemaName: { type: string }
+        tableName: { type: string }
+        columnName: { type: string }
+        snippet: { type: string }
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        detail: { type: string }

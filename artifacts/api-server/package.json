@@ -1,0 +1,25 @@
+{
+  "name": "api-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bash -c 'set -a && source ../../.env && set +a && tsx watch --clear-screen=false src/index.ts'",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.5",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.32.1",
+    "express": "^5.0.1",
+    "postgres": "^3.4.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.14.2",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.3"
+  }
+}
