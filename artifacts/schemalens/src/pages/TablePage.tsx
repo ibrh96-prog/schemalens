@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import type { ScanResult, ColumnInfo, Tag } from '../lib/types';
+import { getCachedScanResult } from '../lib/schemaCache';
 import { Layout } from '../components/Layout';
 import { AnnotationEditor } from '../components/AnnotationEditor';
 import { TagEditor } from '../components/TagEditor';
@@ -33,7 +34,8 @@ export function TablePage() {
   const navigate = useNavigate();
   const connectionId = Number(id);
 
-  const scanResult = (location.state as ScanResult | null) ?? null;
+  const scanResult =
+    (location.state as ScanResult | null) ?? getCachedScanResult(connectionId);
 
   const table = useMemo(
     () =>

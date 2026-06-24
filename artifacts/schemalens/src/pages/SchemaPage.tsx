@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import type { ScanResult, Tag } from '../lib/types';
+import { cacheScanResult } from '../lib/schemaCache';
 import { Layout } from '../components/Layout';
 import { ERDiagram } from '../components/ERDiagram';
 import { TagBadge } from '../components/TagBadge';
@@ -30,9 +31,9 @@ export function SchemaPage() {
   const navigate = useNavigate();
   const connectionId = Number(id);
 
-  const [scanResult, setScanResult] = useState<ScanResult | null>(
-    (location.state as ScanResult | null) ?? null
-  );
+  const initialResult = (location.state as ScanResult | null) ?? null;
+  if (initialResult) cacheScanResult(connectionId, initialResult);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(initialResult);
   const [tab, setTab] = useState<Tab>('diagram');
   const [filter, setFilter] = useState('');
   const [rescanOpen, setRescanOpen] = useState(false);
@@ -96,6 +97,7 @@ export function SchemaPage() {
     setRescanning(true);
     try {
       const result = await api.rescan(connectionId, rescanStr.trim());
+      cacheScanResult(connectionId, result);
       setScanResult(result);
       setRescanOpen(false);
       setRescanStr('');
